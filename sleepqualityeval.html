@@ -1,0 +1,779 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Sleep Quality Evaluation System</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0f1724; --card:#0b1220; --accent:#6ee7b7; --muted:#9aa4b2; --glass: rgba(255,255,255,0.03);
+    --danger:#ff6b6b;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;font-family:Inter,system-ui,Segoe UI,Arial; background: linear-gradient(180deg,#071022 0%, #0b1530 100%); color:#e6eef6;
+    min-height:100vh; padding:28px;
+  }
+  .topbar{
+    display:flex; justify-content:flex-end; gap:10px; align-items:center;
+    position:fixed; right:18px; top:12px; z-index:50;
+  }
+  .btn {
+    background:var(--glass); border:1px solid rgba(255,255,255,0.04); padding:8px 14px; border-radius:10px; color:inherit;
+    font-weight:600; cursor:pointer; backdrop-filter: blur(6px);
+  }
+  .btn:hover{transform:translateY(-2px)}
+  .container{
+    max-width:1000px; margin:60px auto 120px; padding:28px; border-radius:16px; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    box-shadow: 0 10px 30px rgba(2,6,23,0.6), inset 0 1px 0 rgba(255,255,255,0.02);
+  }
+  header h1{margin:0; font-size:22px}
+  .lead{color:var(--muted); margin-top:8px; font-size:14px}
+  .grid{display:grid; grid-template-columns: 1fr 360px; gap:20px; align-items:start; margin-top:18px;}
+  .card{background:linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.01)); padding:18px; border-radius:12px; border:1px solid rgba(255,255,255,0.02);}
+  .quiz .q{margin-bottom:14px}
+  label{display:block; font-weight:600; margin-bottom:6px; font-size:14px}
+  .small{font-size:13px; color:var(--muted); margin-top:6px}
+  input[type="range"]{width:100%}
+  input[type="number"], select, textarea, input[type="text"]{width:100%; padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03); background:transparent; color:inherit}
+  .row{display:flex; gap:10px}
+  .minor{font-size:13px; color:var(--muted)}
+  .resultBox{padding:12px; border-radius:10px; text-align:center}
+  .score{font-size:44px; font-weight:800; color:var(--accent)}
+  canvas{width:100%; height:140px}
+  .remedies li{margin-bottom:8px}
+  .modalBack{position:fixed; inset:0; background:rgba(2,6,23,0.6); display:none;align-items:center;justify-content:center; z-index:100}
+  .modal{width:720px; max-width:95%; max-height:86vh; overflow:auto; background:#071226; padding:18px; border-radius:10px; border:1px solid rgba(255,255,255,0.03)}
+  .modal h2{margin-top:0}
+  .close{float:right; cursor:pointer; color:var(--muted); font-weight:700}
+  footer{margin-top:18px; text-align:center; color:var(--muted); font-size:13px}
+  .chip{display:inline-block;padding:6px 8px;border-radius:10px;background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.02); margin:4px}
+  .dev-grid{display:grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap:12px; margin-top:10px}
+  .avatar{width:74px;height:74px;border-radius:10px;background:linear-gradient(180deg,#0b1220,#0b2733);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--muted)}
+  .smallNote{font-size:13px;color:var(--muted)}
+  .downloadArea{display:flex; gap:8px; justify-content:center; margin-top:10px}
+  .danger{background:linear-gradient(180deg,rgba(255,80,80,0.12), rgba(255,80,80,0.06)); color:var(--danger); border:1px solid rgba(255,80,80,0.12)}
+  .ok{background:linear-gradient(180deg, rgba(110,231,183,0.08), rgba(110,231,183,0.04)); color:var(--accent); border:1px solid rgba(110,231,183,0.06)}
+  .mutedSmall{font-size:13px;color:var(--muted); margin-top:8px}
+  .steps{font-family:monospace; font-size:13px; background:rgba(255,255,255,0.02); padding:10px; border-radius:8px}
+  .footerNote{margin-top:12px; color:var(--muted); font-size:13px}
+  .wide{grid-column:1 / -1}
+  @media (max-width:900px){ .grid{grid-template-columns:1fr} .topbar{right:8px; top:8px} }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <button class="btn" id="learnBtn">Learn</button>
+  <button class="btn" id="devBtn">Developed by</button>
+  <button class="btn" id="helpBtn">Help</button>
+  <button class="btn" id="downloadBtnTop">Download</button>
+</div>
+
+<div class="container card">
+  <header>
+    <h1>Sleep Quality Evaluation System</h1>
+    <div class="lead">Answer the quiz below to get your personalized sleep score (0–100) and tailored remedies.</div>
+  </header>
+
+  <div class="grid">
+    <section class="card quiz">
+      <h3>Sleep Quiz</h3>
+      <form id="quizForm">
+        <!-- Personal -->
+        <div class="q">
+          <label>Name (optional)</label>
+          <input type="text" id="name" placeholder="Your name">
+        </div>
+
+        <div class="q">
+          <label>Age</label>
+          <input type="number" id="age" min="3" max="120" value="30">
+          <div class="small">Age affects recommended sleep duration.</div>
+        </div>
+
+        <!-- Questions: We'll include many relevant items -->
+        <div class="q">
+          <label>Typical bedtime (hour of day)</label>
+          <input type="range" id="bedtime" min="20" max="3" step="1" 
+                 oninput="bedtimeLabel.innerText=value" />
+          <div class="small">Use 20 for 8 PM, 24 or 0 for midnight, 3 for 3 AM. Current: <span id="bedtimeLabel">24</span></div>
+        </div>
+
+        <div class="q">
+          <label>Average sleep duration (hours per night)</label>
+          <input type="number" id="duration" min="0" max="14" step="0.25" value="7.5">
+        </div>
+
+        <div class="q">
+          <label>Sleep latency — time it takes to fall asleep (minutes)</label>
+          <select id="latency">
+            <option value="0">0-10 min</option>
+            <option value="1">10-20 min</option>
+            <option value="2">20-40 min</option>
+            <option value="3">40+ min</option>
+          </select>
+        </div>
+
+        <div class="q">
+          <label>Number of awakenings / night</label>
+          <select id="awakenings">
+            <option value="0">0</option>
+            <option value="1">1-2</option>
+            <option value="2">3-4</option>
+            <option value="3">5+</option>
+          </select>
+        </div>
+
+        <div class="q">
+          <label>How rested do you feel in the morning?</label>
+          <select id="rested">
+            <option value="4">Completely refreshed</option>
+            <option value="3">Somewhat refreshed</option>
+            <option value="2">Neutral</option>
+            <option value="1">Tired</option>
+            <option value="0">Very tired</option>
+          </select>
+        </div>
+
+        <div class="q">
+          <label>Do you snore loudly (or has someone noticed breathing pauses)?</label>
+          <select id="snore">
+            <option value="0">Never</option>
+            <option value="1">Sometimes</option>
+            <option value="2">Often</option>
+            <option value="3">Always / witnessed apneas</option>
+          </select>
+        </div>
+
+        <div class="q">
+          <label>Caffeine intake after 3 PM?</label>
+          <select id="caffeine">
+            <option value="0">No</option>
+            <option value="1">1 cup/occasion</option>
+            <option value="2">2-3 cups</option>
+            <option value="3">Many</option>
+          </select>
+        </div>
+
+        <div class="q">
+          <label>Use of screens (phone/computer) within 1 hour before bed?</label>
+          <select id="screens">
+            <option value="0">No</option>
+            <option value="1">Rarely</option>
+            <option value="2">Often</option>
+            <option value="3">Always</option>
+          </select>
+        </div>
+
+        <div class="q">
+          <label>Physical activity (weekly)</label>
+          <select id="activity">
+            <option value="3">≥150 min moderate / wk</option>
+            <option value="2">Some activity</option>
+            <option value="1">Little</option>
+            <option value="0">None</option>
+          </select>
+        </div>
+
+        <div class="q">
+          <label>Alcohol within 3 hours of bedtime?</label>
+          <select id="alcohol">
+            <option value="0">No</option>
+            <option value="1">Rarely</option>
+            <option value="2">Sometimes</option>
+            <option value="3">Often</option>
+          </select>
+        </div>
+
+        <div class="q">
+          <label>Stress level (0 low — 10 high)</label>
+          <input type="range" id="stress" min="0" max="10" value="4" oninput="stressLabel.innerText=value" />
+          <div class="small">Current: <span id="stressLabel">4</span></div>
+        </div>
+
+        <div class="q">
+          <label>Do you take naps? (duration total per day)</label>
+          <select id="naps">
+            <option value="3">No naps</option>
+            <option value="2">Short (<30 min)</option>
+            <option value="1">Long (30–90 min)</option>
+            <option value="0">Very long/late naps</option>
+          </select>
+        </div>
+
+        <div class="q">
+          <label>Do you use sleep medication or supplements regularly?</label>
+          <select id="meds">
+            <option value="3">No</option>
+            <option value="2">Occasionally</option>
+            <option value="1">Regularly (under guidance)</option>
+            <option value="0">Regularly (self-medicated)</option>
+          </select>
+        </div>
+
+        <div class="q">
+          <label>Bedroom environment (light/noise/temperature)</label>
+          <select id="env">
+            <option value="3">Ideal (dark, quiet, cool)</option>
+            <option value="2">Mostly good</option>
+            <option value="1">Distracting</option>
+            <option value="0">Poor</option>
+          </select>
+        </div>
+
+        <div class="q">
+          <label>Do you suffer from frequent daytime sleepiness (fall asleep unintentionally)?</label>
+          <select id="daySleep">
+            <option value="3">No</option>
+            <option value="2">Sometimes</option>
+            <option value="1">Often</option>
+            <option value="0">Always / severe</option>
+          </select>
+        </div>
+
+        <div style="margin-top:12px; display:flex; gap:8px;">
+          <button class="btn ok" type="button" id="calcBtn">Calculate Sleep Score</button>
+          <button class="btn" type="reset" id="resetBtn">Reset</button>
+        </div>
+        <div class="mutedSmall">The quiz is not a medical diagnosis. For persistent problems see a clinician.</div>
+      </form>
+    </section>
+
+    <aside class="card">
+      <div class="resultBox">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div class="smallNote">Your sleep score</div>
+            <div class="score" id="scoreDisplay">—</div>
+            <div class="small mutedSmall" id="interpretation">Complete the quiz to see your results</div>
+          </div>
+          <div style="width:120px">
+            <canvas id="scoreChart" width="200" height="140"></canvas>
+          </div>
+        </div>
+
+        <div style="margin-top:10px; text-align:left">
+          <h4 style="margin:6px 0">Key suggestions</h4>
+          <ul class="remedies" id="remedyList">
+            <li class="smallNote">Complete the quiz and click <strong>Calculate Sleep Score</strong>.</li>
+          </ul>
+
+          <div style="margin-top:8px;">
+            <button class="btn" id="viewProcedure">View Calculation Steps</button>
+            <button class="btn" id="downloadBtn">Download Report</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <section class="card wide" id="detailsSection" style="display:none">
+      <h3>Score Breakdown & Procedure</h3>
+      <div id="breakdown"></div>
+      <div style="margin-top:12px;">
+        <h4>Calculation steps (explainable)</h4>
+        <div class="steps" id="calcSteps">No calculation yet.</div>
+      </div>
+    </section>
+
+  </div>
+
+  <footer>
+    <div class="footerNote">This Website is made for Education Purpose only.</div>
+  </footer>
+</div>
+
+<!-- Modals -->
+<div id="modalBack" class="modalBack">
+  <div class="modal" id="modalContent">
+    <span class="close" id="modalClose">✕</span>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+  // Helper: show modal with HTML content
+  const modalBack = document.getElementById('modalBack');
+  const modalBody = document.getElementById('modalBody');
+  const modalClose = document.getElementById('modalClose');
+  function showModal(html){
+    modalBody.innerHTML = html;
+    modalBack.style.display = 'flex';
+  }
+  modalClose.onclick = ()=> modalBack.style.display='none';
+  modalBack.onclick = (e)=> { if(e.target===modalBack) modalBack.style.display='none'; }
+
+  // Top buttons
+  document.getElementById('devBtn').addEventListener('click', ()=> {
+    const devHtml = `
+    <h2>Developed by</h2>
+    <p class="smallNote">Project Team and Guide Details</p>
+
+    <div class="dev-grid">
+      <div style="padding:8px;border-radius:8px;background:rgba(255,255,255,0.015)">
+        <div class="row" style="gap:10px;align-items:center">
+          <div class="avatar">DA</div>
+          <div>
+            <div style="font-weight:700">Danish Arora</div>
+            <div class="smallNote">Registration No: 24BCE1714</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding:8px;border-radius:8px;background:rgba(255,255,255,0.015)">
+        <div class="row" style="gap:10px;align-items:center">
+          <div class="avatar">PK</div>
+          <div>
+            <div style="font-weight:700">Pavan K.</div>
+            <div class="smallNote">Registration No: 24BCE1711</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:16px;padding:14px;border-radius:10px;background:rgba(255,255,255,0.02);display:flex;align-items:center;gap:12px;">
+      <img src="https://chennai.vit.ac.in/wp-content/uploads/2021/08/51669.jpg" 
+           alt="Dr. Swaminathan Annadurai" 
+           style="width:90px;height:90px;border-radius:10px;object-fit:cover;border:1px solid rgba(255,255,255,0.05);">
+      <div>
+        <strong>Guided by:</strong><br>
+        <span style="font-size:15px;font-weight:600">Dr. Swaminathan Annadurai</span><br>
+        <span class="smallNote">Faculty, VIT Chennai</span>
+      </div>
+    </div>
+    `;
+    showModal(devHtml);
+  });
+
+  document.getElementById('learnBtn').addEventListener('click', ()=> {
+    const learnHtml = `
+      <h2>Learn — Project materials</h2>
+      <p class="smallNote">Below are sample learning materials, references and an animated video to help users understand sleep hygiene and how this project was built.</p>
+
+      <h4>Project summary</h4>
+      <p>This Sleep Quality Evaluation System collects user inputs (sleep times, latency, lifestyle factors) and computes a composite Sleep Score (0–100). The score weights duration, continuity, daytime function and sleep hygiene.</p>
+
+      <h4>Materials & references</h4>
+      <ul>
+        <li class="smallNote">Prescribed textbook materials: Sleep Medicine chapters (insert your textbook pages / citations here).</li>
+        <li class="smallNote">Key sources: Sleep hygiene guidelines from public health authorities, circadian rhythm research, behavioral sleep medicine.</li>
+        <li class="smallNote">References: Add your course textbook page numbers & references here.</li>
+      </ul>
+
+      <h4>Animated video</h4>
+      <p class="smallNote">Embedded explanatory video (external):</p>
+      <div style="position:relative;padding-top:56.25%">
+        <iframe src="https://www.youtube.com/embed/9c8b6u5k5v4" title="sleep hygiene" style="position:absolute;left:0;top:0;width:100%;height:100%;border:0;border-radius:8px" allowfullscreen></iframe>
+      </div>
+
+      <h4 style="margin-top:10px">Explain how you built this project</h4>
+      <ol>
+        <li class="smallNote">Front-end: Single-file HTML/CSS/JS. Forms collect input; JS computes score & builds report.</li>
+        <li class="smallNote">Scoring: Weighted sub-scores (sleep duration, continuity, hygiene, daytime functioning).</li>
+        <li class="smallNote">Download: Generates a .txt report containing inputs, intermediate calculations and recommendations.</li>
+      </ol>
+
+      <h4 style="margin-top:8px">References</h4>
+      <p class="smallNote">Add your exact textbook citations and any papers here.</p>
+    `;
+    showModal(learnHtml);
+  });
+
+  document.getElementById('helpBtn').addEventListener('click', ()=> {
+    const helpHtml = `
+      <h2>Help — How to use this project</h2>
+      <ol>
+        <li class="smallNote">Fill in your details and answer the quiz honestly.</li>
+        <li class="smallNote">Click <strong>Calculate Sleep Score</strong>.</li>
+        <li class="smallNote">View the score, interpretation and remedies at the right panel.</li>
+        <li class="smallNote">Click <strong>View Calculation Steps</strong> to see the detailed scoring procedure.</li>
+        <li class="smallNote">Click <strong>Download</strong> to download a detailed text report (your inputs, step-by-step calculations, interpretation and suggestions).</li>
+      </ol>
+
+      <h4>What the Download contains</h4>
+      <ul>
+        <li class="smallNote">All your inputs (exact values selected)</li>
+        <li class="smallNote">Per-question numeric scores</li>
+        <li class="smallNote">Total score (0–100) and interpretation</li>
+        <li class="smallNote">Detailed step-by-step calculation (how each subscore was computed)</li>
+        <li class="smallNote">Tailored remedies and links to further reading (user should consult clinician for medical issues)</li>
+      </ul>
+
+      <h4>Troubleshooting</h4>
+      <p class="smallNote">If the download doesn't start, make sure your browser allows popups and file downloads. The app runs fully in the browser — no server is required.</p>
+    `;
+    showModal(helpHtml);
+  });
+
+  // Main logic: scoring
+  function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+
+  function computeScore(values){
+    // We'll compute sub-scores:
+    // durationScore (0-30), continuityScore (0-25), hygieneScore (0-25), daytimeScore (0-20)
+    // total = sum (0-100)
+    // Explanation step-by-step will be produced for the report.
+
+    // Duration target based on age:
+    let targetMin = 7, targetMax = 9; // adult default
+    const age = values.age;
+    if(age < 13){ targetMin = 9; targetMax = 11; }
+    else if(age < 18){ targetMin = 8; targetMax = 10; }
+    else if(age > 65){ targetMin = 7; targetMax = 8; }
+
+    // DurationScore: max if within target, decreases as farther from range
+    let dur = parseFloat(values.duration);
+    let durationScore = 0;
+    if(dur >= targetMin && dur <= targetMax) durationScore = 30;
+    else {
+      // linear penalty up to 0 at ±4 hours from nearest bound
+      const nearest = dur < targetMin ? targetMin : targetMax;
+      const diff = Math.abs(dur - nearest);
+      durationScore = Math.round( clamp(30 * Math.max(0, 1 - diff/4), 0, 30) );
+    }
+
+    // Continuity: based on latency, awakenings, snoring
+    // latency: value 0..3 where 0 best
+    const latency = parseInt(values.latency);
+    const awaken = parseInt(values.awakenings);
+    const snore = parseInt(values.snore);
+    // start from 25, subtract penalties
+    let continuityScore = 25;
+    continuityScore -= latency * 5; // 0->0, 3->15
+    continuityScore -= awaken * 6;   // 0->0, 3->18
+    continuityScore -= snore * 2;    // small penalty
+    continuityScore = Math.round(clamp(continuityScore, 0, 25));
+
+    // Hygiene: screens, caffeine, alcohol, naps, env, activity
+    const screens = parseInt(values.screens);
+    const caffeine = parseInt(values.caffeine);
+    const alcohol = parseInt(values.alcohol);
+    const naps = parseInt(values.naps);
+    const env = parseInt(values.env);
+    const activity = parseInt(values.activity);
+    let hygieneScore = 25;
+    hygieneScore -= screens * 4;   // up to -12
+    hygieneScore -= caffeine * 3;  // up to -9
+    hygieneScore -= alcohol * 2;   // up to -6
+    hygieneScore -= (3 - env) * 3; // environment: env=3 best => 0 penalty, env=0 => -9
+    hygieneScore += activity * 1;  // positive
+    hygieneScore -= (3 - parseInt(values.meds)) * 2; // meds penalty if lower
+    hygieneScore = Math.round(clamp(hygieneScore, 0, 25));
+
+    // Daytime functioning: rested, stress, daySleep
+    const rested = parseInt(values.rested); // 0..4 (higher better)
+    const stress = parseInt(values.stress); // 0..10 (lower better)
+    const daySleep = parseInt(values.daySleep); // 0..3 (higher better)
+    // Scale to 0-20
+    let daytimeScore = 0;
+    daytimeScore += (rested/4) * 10;      // up to 10
+    daytimeScore += ((10 - stress)/10) * 6; // up to 6
+    daytimeScore += (daySleep/3) * 4;     // up to 4
+    daytimeScore = Math.round(clamp(daytimeScore, 0, 20));
+
+    const total = durationScore + continuityScore + hygieneScore + daytimeScore;
+    return {
+      total, durationScore, continuityScore, hygieneScore, daytimeScore,
+      breakdown: {duration:durationScore, continuity:continuityScore, hygiene:hygieneScore, daytime:daytimeScore},
+      details: {
+        targetMin, targetMax, dur, latency, awaken, snore, screens, caffeine, alcohol, naps, env, activity, rested, stress, daySleep
+      }
+    };
+  }
+
+  // UI wiring
+  const bedtimeInput = document.getElementById('bedtime');
+  const bedtimeLabel = document.getElementById('bedtimeLabel');
+  bedtimeInput.value = 24;
+  bedtimeLabel.innerText = bedtimeInput.value;
+
+  const stressInput = document.getElementById('stress');
+  const stressLabel = document.getElementById('stressLabel');
+  stressLabel.innerText = stressInput.value;
+
+  function gatherInputs(){
+    return {
+      name: document.getElementById('name').value || 'Anonymous',
+      age: Number(document.getElementById('age').value) || 30,
+      bedtime: Number(document.getElementById('bedtime').value),
+      duration: Number(document.getElementById('duration').value),
+      latency: document.getElementById('latency').value,
+      awakenings: document.getElementById('awakenings').value,
+      rested: document.getElementById('rested').value,
+      snore: document.getElementById('snore').value,
+      caffeine: document.getElementById('caffeine').value,
+      screens: document.getElementById('screens').value,
+      activity: document.getElementById('activity').value,
+      alcohol: document.getElementById('alcohol').value,
+      stress: document.getElementById('stress').value,
+      naps: document.getElementById('naps').value,
+      meds: document.getElementById('meds').value,
+      env: document.getElementById('env').value,
+      daySleep: document.getElementById('daySleep').value
+    };
+  }
+
+  function interpret(total){
+    if(total >= 85) return {text:'Excellent sleep quality', color: 'ok'};
+    if(total >= 70) return {text:'Good — minor improvements possible', color: 'ok'};
+    if(total >= 50) return {text:'Fair — consider improving sleep hygiene', color: ''};
+    if(total >= 30) return {text:'Poor — consider lifestyle changes and consult a clinician if persistent', color:'danger'};
+    return {text:'Very poor — seek professional evaluation', color:'danger'};
+  }
+
+  function buildRemedies(values, scores){
+    const rem = [];
+    // duration
+    if(scores.durationScore < 25){
+      rem.push('Adjust sleep duration: aim for ' + scores.details.targetMin + '–' + scores.details.targetMax + ' hours/night.');
+    } else rem.push('Duration is within recommended range.');
+
+    if(scores.continuityScore < 18){
+      rem.push('Improve continuity: aim to fall asleep within 15–20 minutes, limit awakenings. Consider sleep restriction therapy & stimulus control.');
+    } else rem.push('Continuity looks okay.');
+
+    if(scores.hygieneScore < 18){
+      rem.push('Sleep hygiene: avoid screens 1 hour before bed, reduce late caffeine/alcohol, optimize bedroom light/noise/temperature.');
+    } else rem.push('Hygiene is good.');
+
+    if(scores.daytimeScore < 12){
+      rem.push('Daytime function: ensure consistent schedule, regular exercise, and avoid long late naps.');
+    } else rem.push('Daytime functioning is acceptable.');
+
+    if(parseInt(values.snore) >= 2 || parseInt(values.daySleep) <= 1){
+      rem.push('Snoring/daytime sleepiness may indicate sleep apnea — consult a sleep specialist.');
+    }
+    rem.push('Consider relaxation practices before bed: deep breathing, progressive muscle relaxation, or guided imagery.');
+
+    return rem;
+  }
+
+  // Chart: simple radial rendering on canvas
+  function drawGauge(canvas, value){
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0,0,w,h);
+    const cx = w/2, cy = h*0.8, r = Math.min(w, h)*0.32;
+    // background arc
+    ctx.lineWidth = 18;
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, Math.PI, 2*Math.PI);
+    ctx.stroke();
+    // value arc
+    const end = Math.PI + (value/100) * Math.PI;
+    // color gradient
+    const grad = ctx.createLinearGradient(0,0,w,0);
+    grad.addColorStop(0, '#ff6b6b'); grad.addColorStop(0.5, '#ffd166'); grad.addColorStop(1,'#6ee7b7');
+    ctx.strokeStyle = grad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, Math.PI, end);
+    ctx.stroke();
+    // small ticks
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    for(let i=0;i<=10;i++){
+      const a = Math.PI + (i/10)*Math.PI;
+      const x = cx + Math.cos(a)*(r+18);
+      const y = cy + Math.sin(a)*(r+18);
+      ctx.fillRect(x-1.5,y-1.5,3,3);
+    }
+  }
+
+  // Show breakdown
+  function renderBreakdown(result, values){
+    const bd = document.getElementById('breakdown');
+    bd.innerHTML = `
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div class="chip">Duration: ${result.durationScore} / 30</div>
+        <div class="chip">Continuity: ${result.continuityScore} / 25</div>
+        <div class="chip">Hygiene: ${result.hygieneScore} / 25</div>
+        <div class="chip">Daytime: ${result.daytimeScore} / 20</div>
+        <div class="chip">Total: ${result.total} / 100</div>
+      </div>
+      <div style="margin-top:10px">
+        <strong>Inputs snapshot:</strong>
+        <div class="smallNote">Bedtime: ${values.bedtime}, Sleep duration: ${values.duration}h, Sleep latency bucket: ${values.latency}, Awakenings bucket: ${values.awakenings}</div>
+      </div>
+    `;
+    document.getElementById('detailsSection').style.display='block';
+    // Build calculation steps
+    const steps = [];
+    steps.push(`1) Duration target for age ${result.details.age || values.age}: ${result.details.targetMin || result.targetMin}–${result.details.targetMax || result.targetMax} hours.`);
+    steps.push(`2) Duration score: computed ${result.durationScore} / 30 based on reported ${result.details.dur} h.`);
+    steps.push(`3) Continuity score: start 25, minus latency penalty (${result.details.latency} *5) = ${result.details.latency *5}, minus awakenings penalty (${result.details.awaken} *6) = ${result.details.awaken *6}, minus snoring penalty (${result.details.snore} *2) = ${result.details.snore *2}. Final continuity ${result.continuityScore}/25.`);
+    steps.push(`4) Hygiene score: start 25, penalties for screens/caffeine/alcohol/environment/naps/meds and bonus for activity. Final hygiene ${result.hygieneScore}/25.`);
+    steps.push(`5) Daytime score: combination of rested (${result.details.rested}/4 -> up to 10), stress ((10 - ${result.details.stress})/10 -> up to 6), daytime sleep factor (${result.details.daySleep}/3 -> up to 4). Final daytime ${result.daytimeScore}/20.`);
+    steps.push(`6) Total score: sum of sub-scores = ${result.total} / 100.`);
+    document.getElementById('calcSteps').innerText = steps.join('\\n\\n');
+  }
+
+  // Calculate & display
+  const calcBtn = document.getElementById('calcBtn');
+  const scoreDisplay = document.getElementById('scoreDisplay');
+  const interpretationEl = document.getElementById('interpretation');
+  const remedyList = document.getElementById('remedyList');
+  const scoreCanvas = document.getElementById('scoreChart');
+
+  calcBtn.addEventListener('click', ()=> {
+    const values = gatherInputs();
+    const result = computeScore(values);
+    // add details.age for steps
+    result.details.age = values.age;
+    // render
+    scoreDisplay.innerText = result.total;
+    const interp = interpret(result.total);
+    interpretationEl.innerText = interp.text;
+    interpretationEl.className = '';
+    // remedies
+    const rems = buildRemedies(values, result);
+    remedyList.innerHTML = rems.map(r=>`<li>${r}</li>`).join('');
+    // draw gauge
+    drawGauge(scoreCanvas, result.total);
+    // breakdown
+    renderBreakdown(result, values);
+    // store last result for download
+    window.lastReport = {values, result, remedies: rems, timestamp: (new Date()).toISOString()};
+  });
+
+  // Download report generation
+  function makeReportText(report){
+    const v = report.values;
+    const r = report.result;
+    const lines = [];
+    lines.push('=== Sleep Quality Evaluation Report ===');
+    lines.push('Generated: ' + report.timestamp);
+    lines.push('');
+    lines.push('--- User Inputs ---');
+    lines.push('Name: ' + (v.name || 'Anonymous'));
+    lines.push('Age: ' + v.age);
+    lines.push('Bedtime (hour): ' + v.bedtime);
+    lines.push('Sleep duration (hours): ' + v.duration);
+    lines.push('Sleep latency bucket (0 best → 3 worst): ' + v.latency);
+    lines.push('Awakenings bucket (0 best → 3 worst): ' + v.awakenings);
+    lines.push('Rested (0 worst → 4 best): ' + v.rested);
+    lines.push('Snoring (0 never → 3 always): ' + v.snore);
+    lines.push('Caffeine after 3pm (0 best → 3 worst): ' + v.caffeine);
+    lines.push('Screens within 1h (0 best → 3 worst): ' + v.screens);
+    lines.push('Physical activity (0 worst → 3 best): ' + v.activity);
+    lines.push('Alcohol near bed (0 best → 3 worst): ' + v.alcohol);
+    lines.push('Stress (0 low → 10 high): ' + v.stress);
+    lines.push('Naps (3 no naps → 0 very long): ' + v.naps);
+    lines.push('Med usage (3 none → 0 self-medicated): ' + v.meds);
+    lines.push('Bedroom environment (0 poor → 3 ideal): ' + v.env);
+    lines.push('Daytime sleepiness (0 severe → 3 none): ' + v.daySleep);
+    lines.push('');
+    lines.push('--- Intermediate Scores ---');
+    lines.push(`Duration score: ${r.durationScore} / 30`);
+    lines.push(`Continuity score: ${r.continuityScore} / 25`);
+    lines.push(`Hygiene score: ${r.hygieneScore} / 25`);
+    lines.push(`Daytime score: ${r.daytimeScore} / 20`);
+    lines.push('');
+    lines.push('--- Total ---');
+    lines.push(`Sleep Score: ${r.total} / 100`);
+    lines.push('');
+    lines.push('--- Interpretation ---');
+    lines.push(interpret(r.total).text);
+    lines.push('');
+    lines.push('--- Remedies & Recommendations ---');
+    report.remedies.forEach((m, i)=> lines.push((i+1)+'. '+m));
+    lines.push('');
+    lines.push('--- Detailed Calculation Procedure ---');
+    // Step-by-step similar to PDF example style
+    lines.push('');
+    lines.push('Step 1: Gather inputs');
+    lines.push('Inputs are recorded above.');
+    lines.push('');
+    lines.push('Step 2: Duration scoring');
+    lines.push(`Target range for age ${r.details.age}: ${r.details.targetMin}–${r.details.targetMax} hours.`);
+    lines.push(`Reported duration: ${r.details.dur} hours.`);
+    lines.push(`Duration score assigned: ${r.durationScore} / 30.`);
+    lines.push('');
+    lines.push('Step 3: Continuity scoring');
+    lines.push('Start from 25 points. Penalties: latency*5, awakenings*6, snore*2.');
+    lines.push(`Latency: ${r.details.latency}, awakenings: ${r.details.awaken}, snore: ${r.details.snore}.`);
+    lines.push(`Continuity score: ${r.continuityScore} / 25.`);
+    lines.push('');
+    lines.push('Step 4: Hygiene scoring');
+    lines.push('Start from 25. Penalties for screens, caffeine, alcohol, environment & naps. Activity adds slight positive.');
+    lines.push(`Hygiene score: ${r.hygieneScore} / 25.`);
+    lines.push('');
+    lines.push('Step 5: Daytime scoring');
+    lines.push('Combination of morning refreshed score, stress inverse, and daytime sleepiness factor.');
+    lines.push(`Daytime score: ${r.daytimeScore} / 20.`);
+    lines.push('');
+    lines.push('Step 6: Final aggregation');
+    lines.push(`Total = duration + continuity + hygiene + daytime = ${r.total} / 100.`);
+    lines.push('');
+    lines.push('--- How to interpret the score ---');
+    lines.push('85–100: Excellent. 70–84: Good. 50–69: Fair. 30–49: Poor. below 30: Very poor — seek professional help.');
+    lines.push('');
+    lines.push('--- How to execute this project (developer notes) ---');
+    lines.push('1) Open the HTML file in any modern browser.');
+    lines.push('2) Fill and click Calculate Sleep Score.');
+    lines.push('3) View details and click Download to save this report.');
+    lines.push('');
+    lines.push('--- End of report ---');
+    return lines.join('\\n');
+  }
+
+  function downloadReport(){
+    const report = window.lastReport;
+    if(!report){
+      alert('Please calculate your sleep score first (click Calculate Sleep Score).');
+      return;
+    }
+    const text = makeReportText(report);
+    const blob = new Blob([text], {type:'text/plain;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${report.values.name.replace(/\\s+/g,'_') || 'sleep_report'}_${(new Date()).toISOString().slice(0,19).replace(/[:T]/g,'-')}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  // wire download buttons
+  document.getElementById('downloadBtn').addEventListener('click', downloadReport);
+  document.getElementById('downloadBtnTop').addEventListener('click', downloadReport);
+
+  // view steps
+  document.getElementById('viewProcedure').addEventListener('click', ()=> {
+    document.getElementById('detailsSection').style.display = 'block';
+    // open modal with steps as well
+    if(window.lastReport){
+      const html = `<h2>Calculation Steps</h2><pre style="white-space:pre-wrap;font-family:monospace">${document.getElementById('calcSteps').innerText}</pre>`;
+      showModal(html);
+    } else {
+      alert('Calculate your score first.');
+    }
+  });
+
+  // keep numeric labels up-to-date
+  bedtimeInput.addEventListener('input', ()=> bedtimeLabel.innerText = bedtimeInput.value);
+  stressInput.addEventListener('input', ()=> stressLabel.innerText = stressInput.value);
+
+  // initial gauge
+  drawGauge(document.getElementById('scoreChart'), 0);
+
+  // reset clears result
+  document.getElementById('resetBtn').addEventListener('click', ()=>{
+    scoreDisplay.innerText='—';
+    interpretationEl.innerText='Complete the quiz to see your results';
+    remedyList.innerHTML='<li class="smallNote">Complete the quiz and click <strong>Calculate Sleep Score</strong>.</li>';
+    document.getElementById('detailsSection').style.display='none';
+    drawGauge(document.getElementById('scoreChart'), 0);
+    window.lastReport = null;
+  });
+
+  // Provide keyboard accessibility: Escape to close modal
+  document.addEventListener('keydown', (e)=> { if(e.key==='Escape') modalBack.style.display='none'; });
+
+  // Safety note to user: not a medical diagnosis (also in UI)
+</script>
+
+</body>
+</html>
